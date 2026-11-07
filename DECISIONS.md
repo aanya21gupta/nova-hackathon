@@ -46,3 +46,10 @@ Running log of choices and assumptions. Add a line whenever CLAUDE.md doesn't co
 - Photo invoices only, no PDF.
 - Ask Spine and cross-training suggestions are skipped.
 - The app is light theme only.
+
+## M3: Forecast that measures and improves itself
+- Walk-forward backtest over the last 28 days (lib/backtest.ts). Each day uses only earlier days; a test proves cutting history after a day doesn't change that day's forecasts.
+- Error metric: mean absolute error in orders per hour (also shown as % of average hourly orders). Mai-friendly: "±1.0 orders an hour".
+- Forecast (b) is exactly buildForecast() on earlier days (tested). (c) = same baseline × learned multipliers (day of week, home game, rain), nudged nightly by exponential smoothing at rate 0.2.
+- The learner starts from the configured home-game multiplier, not from scratch: starting from ×1 was tried and ended worse (+19% after 4 games). With synthetic data whose patterns don't drift, (c) ≈ (b); the card says so honestly. Learning matters with real data that changes.
+- The live forecast is NOT switched to learned multipliers, so the demo story numbers (tests/story.test.ts) stay fixed.
