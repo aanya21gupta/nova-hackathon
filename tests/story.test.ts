@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { getData } from "@/data";
+import { buildAgentContext, findSituations, rulePlan, type Situation } from "@/lib/agent";
 import { closeBooks } from "@/lib/books";
 import { totalOrders } from "@/lib/forecast";
 import { matchIngredients, parseInvoice, validateInvoice } from "@/lib/invoice";
@@ -11,13 +12,25 @@ import { findRunOuts } from "@/lib/ordering";
 import { templateRecap } from "@/lib/recap";
 import { dayPhase, DEFAULT_CONTROL, DEMO_JUMP_MINUTE, DRIVER_DELAY_MINUTES, getBaseForecast, getSimState, getSimStateAt, makeRushTrigger, pickDelayTarget } from "@/lib/simulator";
 import { buildStaffingPlan } from "@/lib/staffing";
-import type { SimControl, Trigger } from "@/lib/types";
+import type { AppliedAction, SimControl, Trigger } from "@/lib/types";
 
 const data = getData();
 const CLOSE = 21 * 60;
 const at630 = 18 * 60 + 30;
-const pickedUpRice: Trigger = { type: "extraStock", ingredientId: "rice", qty: 50 };
-const control = (...triggers: Trigger[]): SimControl => ({ ...DEFAULT_CONTROL, triggers });
+const pickedUpRice: AppliedAction = {
+  id: "draftSupplierOrder:thai-harvest:rice@0",
+  call: { tool: "draftSupplierOrder", supplierId: "thai-harvest", lines: [{ ingredientId: "rice", qty: 50 }] },
+  atMinute: 0,
+  by: "agent",
+  result: "Ordered rice",
+  mockCalls: [],
+  stockArrivesAt: 0,
+};
+const control = (...items: (Trigger | AppliedAction)[]): SimControl => ({
+  ...DEFAULT_CONTROL,
+  triggers: items.filter((i): i is Trigger => "type" in i),
+  actions: items.filter((i): i is AppliedAction => "call" in i),
+});
 const scanned = (name: string) =>
   validateInvoice(matchIngredients(parseInvoice(readFileSync(`data/llm-cache/invoice-${name}.json`, "utf8"), name), data));
 
@@ -67,9 +80,11 @@ describe("happy path", () => {
     expect(Math.abs(summary.orderDifference)).toBeLessThan(15);
   });
 
-  it("lists the rice stockout if Mai ignores the morning warning", () => {
+  it("if the morning warning is ignored, rice runs out and lost sales follow", () => {
     const summary = closeBooks(getSimStateAt(control(), data, CLOSE), data);
-    expect(summary.stockouts.map((s) => s.ingredientId)).toEqual(["rice"]);
+    expect(summary.stockouts.map((s) => s.ingredientId)).toContain("rice");
+    expect(summary.lostSales).toBeGreaterThan(0);
+    expect(summary.cancelledOrders).toBeGreaterThan(0);
   });
 
   it("gives the kitchen something to do during the rush", () => {
@@ -106,8 +121,11 @@ describe("sad path: rush beats forecast", () => {
     expect(message === "We've run out of Pad Thai noodles." || message?.includes("will run out by")).toBe(true);
   });
 
-  it("suggests pausing Pad Thai on delivery apps", () => {
-    expect(messages.some((m) => m.startsWith("Pause Pad Thai on DoorDash and App B"))).toBe(true);
+  it("has the agent suggest pausing Pad Thai on delivery apps", () => {
+    const situation = findSituations(state, data).find((x) => x.kind === "rush");
+    const plan = rulePlan(buildAgentContext(situation as Situation, state, data));
+    const pause = plan.find((p) => p.call.tool === "pauseItem");
+    expect(pause?.call).toMatchObject({ tool: "pauseItem", itemId: "pad-thai", channels: ["doordash", "appB"] });
   });
 
   it("flags that packing is understaffed", () => {

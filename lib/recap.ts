@@ -10,6 +10,9 @@ export function templateRecap(s: DaySummary): Recap {
       ? "exactly what we planned"
       : `${Math.abs(difference)} ${difference > 0 ? "more" : "fewer"} than the ${s.forecastOrders} planned`;
   sentences.push(`You served ${s.actualOrders} orders today, ${versus}, and sold ${formatMoney(s.totalRevenue)}.`);
+  if (s.lostOrders > 0) {
+    sentences.push(`${s.lostOrders} orders couldn't be made because something ran out${s.cancelledOrders > 0 ? `, and ${s.cancelledOrders} of those were cancelled and refunded` : ""}.`);
+  }
   sentences.push(`Food cost was ${s.foodCostPercent}% of sales and labor was ${s.laborPercent}%.`);
 
   if (s.bestItems[0]) sentences.push(`${s.bestItems[0].name} was your best seller, with ${s.bestItems[0].sold} sold.`);

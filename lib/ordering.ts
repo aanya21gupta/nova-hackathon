@@ -1,6 +1,6 @@
 // See CLAUDE.md 4.3.
 import { formatTime, round2 } from "./format";
-import type { Forecast, Minutes, Order, RestaurantData, RunOut, SupplierOrderLine } from "./types";
+import type { Channel, Forecast, Minutes, Order, RestaurantData, RunOut, SupplierOrderLine } from "./types";
 
 /** Ingredient quantity used per one of each menu item. */
 function recipeIndex(data: RestaurantData): Record<string, { ingredientId: string; qty: number }[]> {
@@ -48,7 +48,7 @@ export function buildSupplierOrder(forecast: Forecast, data: RestaurantData, day
   return lines;
 }
 
-function runOut(ingredientId: string, name: string, at: Minutes | null): RunOut {
+export function runOut(ingredientId: string, name: string, at: Minutes | null): RunOut {
   return {
     ingredientId,
     ingredientName: name,
@@ -93,26 +93,46 @@ export function findRunOuts(forecast: Forecast, data: RestaurantData, from: Minu
     .sort((a, b) => (a.runsOutAt ?? Infinity) - (b.runsOutAt ?? Infinity));
 }
 
-/** What actually ran out, going through the day's real orders. */
-export function actualStockouts(orders: Order[], data: RestaurantData): RunOut[] {
+/**
+ * The latest time an item can stay on these channels and still have the ingredient last
+ * through close. Selling for as long as possible loses the fewest sales, so this is the
+ * time Spine suggests. Uses the forecast from `from` onward, rounded down to 5 minutes.
+ * Returns `from` if even pausing right now wouldn't be enough.
+ */
+export function latestPauseTime(
+  forecast: Forecast,
+  data: RestaurantData,
+  ingredientId: string,
+  menuItemId: string,
+  channels: Channel[],
+  from: Minutes,
+  orders: Order[],
+): Minutes {
   const recipes = recipeIndex(data);
-  const stock: Record<string, number> = {};
-  for (const i of data.ingredients) stock[i.id] = i.onHand;
+  const close = data.closeHour * 60;
+  const ingredient = data.ingredients.find((i) => i.id === ingredientId);
+  const used = usageFromOrders(orders.filter((o) => o.placedAt <= from), data)[ingredientId] ?? 0;
+  const itemQty = recipes[menuItemId]?.find((r) => r.ingredientId === ingredientId)?.qty ?? 0;
 
-  const found: RunOut[] = [];
-  const seen = new Set<string>();
-  for (const order of [...orders].sort((a, b) => a.placedAt - b.placedAt)) {
-    for (const line of order.items) {
-      for (const r of recipes[line.menuItemId] ?? []) {
-        if (stock[r.ingredientId] === undefined) continue;
-        stock[r.ingredientId] -= r.qty * line.qty;
-        if (stock[r.ingredientId] <= 0 && !seen.has(r.ingredientId)) {
-          seen.add(r.ingredientId);
-          const ingredient = data.ingredients.find((i) => i.id === r.ingredientId);
-          found.push(runOut(r.ingredientId, ingredient?.name ?? r.ingredientId, order.placedAt));
-        }
+  const lastsUntilClose = (pauseAt: Minutes) => {
+    let stock = (ingredient?.onHand ?? 0) - used;
+    for (const h of forecast.hourly) {
+      let perMinute = 0;
+      for (const [itemId, count] of Object.entries(h.byItem)) {
+        const qty = recipes[itemId]?.find((r) => r.ingredientId === ingredientId)?.qty ?? 0;
+        perMinute += (count * qty) / 60;
+      }
+      const itemPerMinute = ((h.byItem[menuItemId] ?? 0) * itemQty) / 60;
+      const share = h.orders > 0 ? channels.reduce((sum, c) => sum + h.byChannel[c], 0) / h.orders : 0;
+      for (let minute = Math.max(h.hour * 60, from); minute < Math.min((h.hour + 1) * 60, close); minute++) {
+        stock -= minute >= pauseAt ? perMinute - itemPerMinute * share : perMinute;
       }
     }
+    return stock >= 0;
+  };
+
+  for (let pauseAt = Math.floor(close / 5) * 5; pauseAt > from; pauseAt -= 5) {
+    if (lastsUntilClose(pauseAt)) return pauseAt;
   }
-  return found;
+  return from;
 }

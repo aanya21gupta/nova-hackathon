@@ -16,7 +16,9 @@ function itemName(menu: MenuItem[], id: string): string {
 
 /** FIRE NOW is the full card. The others stay compact so they fit on a laptop screen too. */
 function OrderCard({ entry, menu, column, delayMinutes }: { entry: QueueEntry; menu: MenuItem[]; column: (typeof COLUMNS)[number]; delayMinutes?: number }) {
+  const { runTool } = useSim();
   const fire = column.label === "FIRE NOW";
+  const moveButton = "min-h-10 flex-1 rounded-lg bg-neutral-800 px-3 text-lg font-semibold text-white hover:bg-neutral-700";
   return (
     <div className={`rounded-2xl border-2 ${fire ? "p-4" : "px-4 py-2.5"} ${column.card}`}>
       <div className="flex items-baseline justify-between gap-3">
@@ -34,6 +36,16 @@ function OrderCard({ entry, menu, column, delayMinutes }: { entry: QueueEntry; m
       {delayMinutes !== undefined && (
         <div className="mt-2 rounded-lg bg-sky-300 px-3 py-1 text-2xl font-bold text-black">Driver late +{delayMinutes} min</div>
       )}
+      <div className="mt-2 flex gap-2">
+        {fire ? (
+          <>
+            <button type="button" className={moveButton} onClick={() => runTool({ tool: "holdOrder", orderId: entry.orderId }, "owner")}>Hold</button>
+            <button type="button" className={moveButton} onClick={() => runTool({ tool: "markOrderReady", orderId: entry.orderId }, "owner")}>Ready</button>
+          </>
+        ) : (
+          <button type="button" className={moveButton} onClick={() => runTool({ tool: "fireOrder", orderId: entry.orderId }, "owner")}>Fire now</button>
+        )}
+      </div>
     </div>
   );
 }

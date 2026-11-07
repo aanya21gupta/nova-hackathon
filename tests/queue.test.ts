@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildQueue, startTime } from "@/lib/queue";
+import { buildQueue, PACKING_BUFFER_MINUTES, startTime } from "@/lib/queue";
 import type { MenuItem, Order } from "@/lib/types";
 
 const menu: MenuItem[] = [
@@ -13,17 +13,17 @@ function order(id: string, targetReadyAt: number, driverEtaAt?: number, status: 
 
 describe("startTime", () => {
   it("is ready time minus the longest prep minus the packing buffer", () => {
-    expect(startTime(order("a", 100), menu)).toBe(100 - 10 - 3);
+    expect(startTime(order("a", 100), menu)).toBe(100 - 10 - PACKING_BUFFER_MINUTES);
   });
 
   it("uses the driver's ETA when there is one", () => {
-    expect(startTime(order("a", 100, 120), menu)).toBe(120 - 10 - 3);
+    expect(startTime(order("a", 100, 120), menu)).toBe(120 - 10 - PACKING_BUFFER_MINUTES);
   });
 });
 
 describe("buildQueue", () => {
   it("labels by start time", () => {
-    const now = 87;
+    const now = 100 - 10 - PACKING_BUFFER_MINUTES;
     const queue = buildQueue([order("fire", 100), order("next", 105), order("hold", 106)], menu, now);
     expect(queue.map((e) => [e.orderId, e.label])).toEqual([
       ["fire", "FIRE NOW"],
@@ -43,7 +43,7 @@ describe("buildQueue", () => {
   });
 
   it("moves an order from FIRE NOW to HOLD when the driver is 12 minutes late", () => {
-    const now = 87;
+    const now = 100 - 10 - PACKING_BUFFER_MINUTES;
     expect(buildQueue([order("a", 100, 100)], menu, now)[0].label).toBe("FIRE NOW");
     expect(buildQueue([order("a", 100, 112)], menu, now)[0].label).toBe("HOLD");
   });

@@ -10,7 +10,7 @@ import { join } from "node:path";
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const TIMEOUT_MS = 20_000;
 
-export type LLMJob = "invoice" | "recap" | "alertReason";
+export type LLMJob = "invoice" | "recap" | "alertReason" | "agentPlan";
 
 export interface LLMRequest<T> {
   job: LLMJob;
@@ -25,6 +25,8 @@ export interface LLMRequest<T> {
   /** Return false to reject the output and use the fallback. */
   validate: (value: T) => boolean;
   fallback: () => T;
+  /** Use a saved answer if there is one. For screens that may ask the same thing repeatedly. */
+  preferCache?: boolean;
 }
 
 export interface LLMResult<T> {
@@ -106,6 +108,11 @@ async function callLive<T>(request: LLMRequest<T>, apiKey: string, model: string
 export async function runLLM<T>(request: LLMRequest<T>): Promise<LLMResult<T>> {
   const { offline, hasKey, model } = llmStatus();
 
+  if (request.preferCache) {
+    const saved = await fromCache(request);
+    if (saved !== null) return { value: saved, source: "cache" };
+  }
+
   if (!offline && hasKey && model) {
     const raw = await callLive(request, process.env.OPENROUTER_API_KEY as string, model);
     if (raw !== null) {
@@ -123,20 +130,4 @@ export async function runLLM<T>(request: LLMRequest<T>): Promise<LLMResult<T>> {
   return { value: request.fallback(), source: "fallback" };
 }
 
-const NUMBER = /\d[\d,]*(?:\.\d+)?/g;
-
-function numbersIn(text: string): number[] {
-  return (text.match(NUMBER) ?? []).map((n) => Number(n.replace(/,/g, ""))).filter(Number.isFinite);
-}
-
-/** True if the text contains any number that isn't in the input JSON. Rounded forms are allowed. */
-export function hasInventedNumbers(text: string, input: unknown): boolean {
-  const allowed = new Set<number>();
-  for (const n of numbersIn(JSON.stringify(input))) {
-    allowed.add(n);
-    allowed.add(Math.round(n));
-    allowed.add(Math.round(n * 10) / 10);
-    allowed.add(Math.round(n * 100) / 100);
-  }
-  return numbersIn(text).some((n) => !allowed.has(n));
-}
+export { hasInventedNumbers } from "./numbers";

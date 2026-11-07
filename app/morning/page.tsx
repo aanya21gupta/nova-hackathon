@@ -1,6 +1,8 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ActionLog } from "@/components/ActionLog";
+import { AgentPlans } from "@/components/AgentPlan";
 import { HourlyForecastChart } from "@/components/charts";
 import { Button, ButtonLink, Card, NextStep, Notice, Page, PageTitle } from "@/components/ui";
 import { totalOrders } from "@/lib/forecast";
@@ -143,7 +145,7 @@ function StaffTab({ forecast, data }: { forecast: Forecast; data: RestaurantData
 }
 
 export default function MorningPage() {
-  const { state, data, phase, fire, start } = useSim();
+  const { state, data, phase, start } = useSim();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("Prep");
   const { forecast, effectiveData } = state;
@@ -178,24 +180,11 @@ export default function MorningPage() {
               Everything below reflects that.
             </Notice>
           )}
-          {runOuts.map((r) => {
-            const ingredient = effectiveData.ingredients.find((i) => i.id === r.ingredientId);
-            return (
-              <Notice
-                key={r.ingredientId}
-                tone="urgent"
-                action={
-                  ingredient && (
-                    <Button primary onClick={() => fire({ type: "extraStock", ingredientId: ingredient.id, qty: ingredient.packSize })}>
-                      I&apos;ll pick up {ingredient.packSize} {ingredient.unit} today
-                    </Button>
-                  )
-                }
-              >
-                {r.ingredientName} runs out around {r.runsOutLabel} at this pace.
-              </Notice>
-            );
-          })}
+          {runOuts.map((r) => (
+            <Notice key={r.ingredientId} tone="urgent">
+              {r.ingredientName} runs out around {r.runsOutLabel} at this pace.
+            </Notice>
+          ))}
           {staffAlerts.map((alert) => (
             <Notice key={alert.id} tone="warning">{alert.message}</Notice>
           ))}
@@ -204,6 +193,8 @@ export default function MorningPage() {
           ))}
         </section>
       )}
+
+      <AgentPlans kinds={["runOut"]} />
 
       <Card title="Orders by hour">
         <HourlyForecastChart forecast={forecast} />
@@ -230,6 +221,8 @@ export default function MorningPage() {
           {tab === "Staff" && <StaffTab forecast={forecast} data={effectiveData} />}
         </div>
       </Card>
+
+      <ActionLog />
 
       <NextStep title={phase === "morning" ? "Ready to open?" : "Service has started"}>
         {phase === "morning" ? (

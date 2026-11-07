@@ -1,49 +1,32 @@
 // Code builds each message and its facts. The LLM may only explain them.
+// What to do about an alert is the agent's job: see lib/agent.ts.
 import { REFORECAST_CHECK_MINUTES } from "./forecast";
 import { formatHour, SKILL_NAMES } from "./format";
 import { findRunOuts } from "./ordering";
 import { buildStaffingPlan } from "./staffing";
-import type { Alert, Forecast, MenuItem, Minutes, Order, RestaurantData, RunOut, Skill, StaffingHour } from "./types";
+import type { Alert, Forecast, Minutes, Order, RestaurantData, RunOut, Skill, StaffingHour } from "./types";
 
-/** The menu item that uses the most of an ingredient, by forecast. */
-function biggestUser(ingredientId: string, forecast: Forecast, data: RestaurantData): MenuItem | undefined {
-  let best: MenuItem | undefined;
-  let bestUse = 0;
-  for (const item of data.menu) {
-    const line = item.recipe.find((r) => r.ingredientId === ingredientId);
-    if (!line) continue;
-    const count = forecast.hourly.reduce((sum, h) => sum + (h.byItem[item.id] ?? 0), 0);
-    if (count * line.qty > bestUse) {
-      best = item;
-      bestUse = count * line.qty;
-    }
-  }
-  return best;
-}
+function runOutAlerts(runOuts: RunOut[], stockouts: RunOut[]): Alert[] {
+  const alerts: Alert[] = stockouts.map((out) => ({
+    id: `runout-${out.ingredientId}`,
+    kind: "runOut",
+    severity: "urgent",
+    message: `We've run out of ${out.ingredientName}.`,
+    facts: { ingredient: out.ingredientName, ranOutAt: out.runsOutLabel ?? "" },
+    reason: `${out.ingredientName} ran out at about ${out.runsOutLabel}, so dishes that use it can't be made.`,
+  }));
 
-function runOutAlerts(runOuts: RunOut[], forecast: Forecast, data: RestaurantData, checkAt: Minutes): Alert[] {
-  const alerts: Alert[] = [];
+  const alreadyOut = new Set(stockouts.map((s) => s.ingredientId));
   for (const r of runOuts) {
-    if (r.runsOutAt === null || r.runsOutLabel === null) continue;
+    if (r.runsOutAt === null || r.runsOutLabel === null || alreadyOut.has(r.ingredientId)) continue;
     alerts.push({
       id: `runout-${r.ingredientId}`,
       kind: "runOut",
       severity: "urgent",
-      message: r.runsOutAt <= checkAt ? `We've run out of ${r.ingredientName}.` : `${r.ingredientName} will run out by ${r.runsOutLabel}.`,
+      message: `${r.ingredientName} will run out by ${r.runsOutLabel}.`,
       facts: { ingredient: r.ingredientName, runsOutBy: r.runsOutLabel },
       reason: `At the current pace, what's left of the ${r.ingredientName.toLowerCase()} won't last until close.`,
     });
-    const item = biggestUser(r.ingredientId, forecast, data);
-    if (item && forecast.scaledBy !== undefined) {
-      alerts.push({
-        id: `pause-${item.id}`,
-        kind: "pauseItem",
-        severity: "warning",
-        message: `Pause ${item.name} on DoorDash and App B to save it for phone and walk-in orders.`,
-        facts: { item: item.name, ingredient: r.ingredientName, runsOutBy: r.runsOutLabel },
-        reason: `${item.name} uses the most ${r.ingredientName.toLowerCase()}. Direct orders don't pay delivery fees, so they keep more of each sale.`,
-      });
-    }
   }
   return alerts;
 }
@@ -76,7 +59,7 @@ function staffingAlerts(hours: StaffingHour[]): Alert[] {
  * Alerts use the last half-hour check, the same moment as the re-forecast, so a
  * warning like "by 8:15" stays still on screen instead of shifting every minute.
  */
-export function buildAlerts(forecast: Forecast, orders: Order[], data: RestaurantData, now: Minutes): Alert[] {
+export function buildAlerts(forecast: Forecast, orders: Order[], data: RestaurantData, now: Minutes, stockouts: RunOut[] = []): Alert[] {
   const checkAt = Math.floor(now / REFORECAST_CHECK_MINUTES) * REFORECAST_CHECK_MINUTES;
   const alerts: Alert[] = [];
 
@@ -93,7 +76,7 @@ export function buildAlerts(forecast: Forecast, orders: Order[], data: Restauran
     });
   }
 
-  alerts.push(...runOutAlerts(findRunOuts(forecast, data, checkAt, orders), forecast, data, checkAt));
+  alerts.push(...runOutAlerts(findRunOuts(forecast, data, checkAt, orders), stockouts));
 
   const remaining = buildStaffingPlan(forecast, data).hours.filter((h) => (h.hour + 1) * 60 > checkAt);
   alerts.push(...staffingAlerts(remaining));

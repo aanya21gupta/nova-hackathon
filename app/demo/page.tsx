@@ -50,6 +50,7 @@ export default function DemoPage() {
 
   const rushOn = control.triggers.some((t) => t.type === "rush");
   const gapOn = control.triggers.some((t) => t.type === "payoutGap");
+  const badOn = control.triggers.some((t) => t.type === "badSuggestion");
   const delayTarget = pickDelayTarget(state);
 
   function delayDriver() {
@@ -108,6 +109,12 @@ export default function DemoPage() {
             <Button disabled={gapOn} onClick={() => fire({ type: "payoutGap" })}>{gapOn ? "✓ Payout gap is on" : "Payout gap"}</Button>
           </Trigger>
         </div>
+      </Card>
+
+      <Card title="AI guardrail">
+        <Trigger note="The next agent plan includes a made-up dish and made-up numbers. Watch Spine reject it on screen. Press this before the rush or a run-out plan appears.">
+          <Button disabled={badOn} onClick={() => fire({ type: "badSuggestion" })}>{badOn ? "✓ Bad suggestion is on" : "Feed the agent a bad suggestion"}</Button>
+        </Trigger>
       </Card>
 
       <Card title="Open a screen" note="Opens in a new tab and stays in sync with these controls.">

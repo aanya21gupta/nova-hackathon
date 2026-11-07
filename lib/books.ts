@@ -3,12 +3,12 @@ import { formatTime, round2 } from "./format";
 import { firstReforecast, totalOrders } from "./forecast";
 import { comparePrices } from "./invoice";
 import { computeLearnings } from "./learnings";
-import { actualStockouts, usageFromOrders } from "./ordering";
+import { usageFromOrders } from "./ordering";
 import type { Channel, DaySummary, MenuItem, Order, Payout, PayoutGap, RestaurantData, SimState } from "./types";
 
 const CHANNELS: Channel[] = ["doordash", "appB", "direct"];
 
-function orderRevenue(order: Order, menu: MenuItem[]): number {
+export function orderRevenue(order: Order, menu: MenuItem[]): number {
   return order.items.reduce((sum, line) => {
     const item = menu.find((m) => m.id === line.menuItemId);
     return sum + (item?.price ?? 0) * line.qty;
@@ -72,7 +72,8 @@ export function closeBooks(state: SimState, data: RestaurantData): DaySummary {
   const used = usageFromOrders(orders, data);
   const foodCost = Object.entries(used).reduce((sum, [id, qty]) => sum + qty * (prices[id] ?? 0), 0);
 
-  const shiftCost = data.staff.reduce(
+  // effectiveData includes anyone called in, so their wages count.
+  const shiftCost = state.effectiveData.staff.reduce(
     (sum, member) => sum + member.availability.reduce((hours, s) => hours + (s.end - s.start) / 60, 0) * member.hourlyRate,
     0,
   );
@@ -91,13 +92,17 @@ export function closeBooks(state: SimState, data: RestaurantData): DaySummary {
     .sort((a, b) => b.revenue - a.revenue);
 
   const percentOf = (part: number) => (totalRevenue > 0 ? Math.round((part / totalRevenue) * 1000) / 10 : 0);
-  const first = firstReforecast(state.baseForecast, orders, state.now);
+  // A re-forecast looks at demand, so orders that couldn't be made still count.
+  const first = firstReforecast(state.baseForecast, state.placed, state.now);
   const forecastOrders = Math.round(totalOrders(state.baseForecast));
 
   return {
     date: data.date,
     forecastOrders,
     actualOrders: orders.length,
+    lostOrders: state.placed.length - orders.length,
+    cancelledOrders: state.cancelledOrders.length,
+    lostSales: round2(state.lostSales),
     orderDifference: orders.length - forecastOrders,
     totalRevenue: round2(totalRevenue),
     revenueByChannel: Object.fromEntries(CHANNELS.map((c) => [c, round2(revenueByChannel[c])])) as Record<Channel, number>,
@@ -110,12 +115,13 @@ export function closeBooks(state: SimState, data: RestaurantData): DaySummary {
     reforecastPercent: first?.scaledBy === undefined ? null : Math.round((first.scaledBy - 1) * 100),
     reforecastAtLabel: first?.reforecastAt === undefined ? null : formatTime(first.reforecastAt),
     driverDelays: Object.keys(state.delayedOrders).length,
+    actionsTaken: state.actions.map((a) => a.result),
     flaggedInvoices,
     bestItems: itemRows.slice(0, 3),
     worstItems: itemRows.slice(-2).reverse(),
     priceChanges: accepted.flatMap((invoice) => comparePrices(invoice, data, sold)),
     payoutGaps,
-    stockouts: actualStockouts(orders, state.effectiveData),
+    stockouts: state.stockouts,
     learnings: computeLearnings(data.history),
   };
 }

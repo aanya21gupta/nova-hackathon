@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ActionLog } from "@/components/ActionLog";
+import { AgentPlans } from "@/components/AgentPlan";
 import { PlanVsActualChart } from "@/components/charts";
 import { Button, ButtonLink, Card, NextStep, Notice, Page, PageTitle, Stat } from "@/components/ui";
 import { expectedBetween } from "@/lib/forecast";
@@ -11,7 +13,7 @@ import { useSim } from "@/lib/useSim";
 
 const SEVERITY_ORDER: Alert["severity"][] = ["urgent", "warning", "info"];
 
-function AlertRow({ alert, paused, onPause, canPause }: { alert: Alert; paused: boolean; onPause: () => void; canPause: boolean }) {
+function AlertRow({ alert }: { alert: Alert }) {
   const [reason, setReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -37,12 +39,6 @@ function AlertRow({ alert, paused, onPause, canPause }: { alert: Alert; paused: 
       tone={alert.severity}
       action={
         <>
-          {canPause &&
-            (paused ? (
-              <span className="text-lg font-semibold">✓ Marked as paused (prototype: nothing is sent to the apps)</span>
-            ) : (
-              <Button primary onClick={onPause}>Pause it</Button>
-            ))}
           {reason === null ? (
             <button type="button" onClick={explain} disabled={loading} className="min-h-11 text-lg text-muted underline underline-offset-4 hover:text-ink">
               {loading ? "Checking…" : "Why?"}
@@ -59,7 +55,7 @@ function AlertRow({ alert, paused, onPause, canPause }: { alert: Alert; paused: 
 }
 
 export default function ServicePage() {
-  const { state, data, phase, running, start, jumpTo, fire } = useSim();
+  const { state, data, phase, running, start, jumpTo } = useSim();
   const router = useRouter();
   const open = data.openHour * 60;
   const expected = Math.round(expectedBetween(state.baseForecast, open, state.now));
@@ -96,21 +92,13 @@ export default function ServicePage() {
         </div>
       </div>
 
+      <AgentPlans />
+
       <section className="grid grid-cols-1 gap-3" aria-label="Alerts">
         {alerts.length === 0 && <Notice tone="good">Everything is on track.</Notice>}
-        {alerts.map((alert) => {
-          const canPause = alert.kind === "pauseItem";
-          const menuItemId = alert.id.replace("pause-", "");
-          return (
-            <AlertRow
-              key={alert.id}
-              alert={alert}
-              canPause={canPause}
-              paused={canPause && state.pausedItemIds.includes(menuItemId)}
-              onPause={() => fire({ type: "pauseItem", menuItemId })}
-            />
-          );
-        })}
+        {alerts.map((alert) => (
+          <AlertRow key={alert.id} alert={alert} />
+        ))}
       </section>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -134,6 +122,8 @@ export default function ServicePage() {
       <Card title="Plan and real orders" note="Real orders appear once each hour is over.">
         <PlanVsActualChart baseForecast={state.baseForecast} forecast={state.forecast} actuals={state.actuals} now={state.now} />
       </Card>
+
+      <ActionLog />
 
       <NextStep title={state.serviceOver ? "Service is done" : `Last orders at ${formatTime(data.closeHour * 60)}`} back={{ href: "/morning", label: "Back to today's plan" }}>
         {state.serviceOver ? (

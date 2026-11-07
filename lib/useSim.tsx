@@ -2,10 +2,11 @@
 // Reads SimControl from localStorage, stays in sync across tabs through the
 // `storage` event, and ticks on a timer. Still works if localStorage is blocked.
 // One provider in the layout, so the header and the page always agree within a tab.
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getData } from "@/data";
 import { currentMinute, dayPhase, DEFAULT_CONTROL, getSimStateAt, SIM_STORAGE_KEY, type DayPhase } from "./simulator";
-import type { Minutes, RestaurantData, SimControl, SimState, Trigger } from "./types";
+import { applyToolCall, type ApplyResult } from "./tools";
+import type { ActionSource, Minutes, RestaurantData, SimControl, SimState, ToolCall, Trigger } from "./types";
 
 export interface UseSim {
   control: SimControl;
@@ -19,13 +20,16 @@ export interface UseSim {
   setSpeed: (speed: number) => void;
   jumpTo: (minute: Minutes) => void;
   fire: (trigger: Trigger) => void;
+  /** Runs a tool now. It's validated first, and the result says if it was rejected. */
+  runTool: (call: ToolCall, by: ActionSource) => ApplyResult;
+  skipAction: (id: string) => void;
   reset: () => void;
 }
 
 function readControl(): SimControl {
   try {
     const stored = window.localStorage.getItem(SIM_STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as SimControl) : DEFAULT_CONTROL;
+    return stored ? { ...DEFAULT_CONTROL, ...(JSON.parse(stored) as Partial<SimControl>) } : DEFAULT_CONTROL;
   } catch {
     return DEFAULT_CONTROL;
   }
@@ -50,13 +54,18 @@ export function useSim(): UseSim {
 export function SimProvider({ children }: { children: ReactNode }) {
   const data = getData();
   const [control, setControl] = useState<SimControl>(DEFAULT_CONTROL);
+  const controlRef = useRef<SimControl>(DEFAULT_CONTROL);
   const [nowMs, setNowMs] = useState(0);
 
   useEffect(() => {
-    setControl(readControl());
+    controlRef.current = readControl();
+    setControl(controlRef.current);
     setNowMs(Date.now());
     const onStorage = (event: StorageEvent) => {
-      if (event.key === SIM_STORAGE_KEY || event.key === null) setControl(readControl());
+      if (event.key === SIM_STORAGE_KEY || event.key === null) {
+        controlRef.current = readControl();
+        setControl(controlRef.current);
+      }
     };
     window.addEventListener("storage", onStorage);
     const timer = window.setInterval(() => setNowMs(Date.now()), 200);
@@ -69,15 +78,28 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const minute = currentMinute(control, data, nowMs);
   const state = useMemo(() => getSimStateAt(control, data, minute), [control, data, minute]);
 
-  const update = useCallback(
-    (change: (current: SimControl, now: number) => SimControl) => {
-      setControl((current) => {
-        const next = change(current, Date.now());
-        writeControl(next);
-        return next;
-      });
+  const update = useCallback((change: (current: SimControl, now: number) => SimControl) => {
+    const next = change(controlRef.current, Date.now());
+    controlRef.current = next;
+    setControl(next);
+    writeControl(next);
+  }, []);
+
+  const runTool = useCallback(
+    (call: ToolCall, by: ActionSource): ApplyResult => {
+      const current = controlRef.current;
+      const result = applyToolCall(current, call, by, currentMinute(current, data, Date.now()), data);
+      if (result.ok) update(() => result.control);
+      return result;
     },
-    [],
+    [update, data],
+  );
+
+  const skipAction = useCallback(
+    (id: string) => {
+      update((c) => ({ ...c, skipped: [...c.skipped, id] }));
+    },
+    [update],
   );
 
   const start = useCallback(() => {
@@ -123,8 +145,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const running = !control.paused && minute < data.closeHour * 60;
   const phase = dayPhase(control, state);
   const value = useMemo<UseSim>(
-    () => ({ control, state, data, running, phase, start, pause, setSpeed, jumpTo, fire, reset }),
-    [control, state, data, running, phase, start, pause, setSpeed, jumpTo, fire, reset],
+    () => ({ control, state, data, running, phase, start, pause, setSpeed, jumpTo, fire, runTool, skipAction, reset }),
+    [control, state, data, running, phase, start, pause, setSpeed, jumpTo, fire, runTool, skipAction, reset],
   );
 
   return <SimContext.Provider value={value}>{children}</SimContext.Provider>;

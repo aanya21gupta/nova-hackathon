@@ -12,6 +12,16 @@ Running log of choices and assumptions. Add a line whenever CLAUDE.md doesn't co
 
 - **The recap runs only after close.** A recap of part of a day compares it with the whole day's plan and misleads, and it would make a paid call every time the numbers changed.
 
+## Action agent (M1)
+- **Approve only.** Nothing happens until the owner approves it. There's no automatic mode.
+- **Code computes, the AI chooses.** The agent gets pre-computed JSON and picks from typed tools. Every suggestion is checked against that JSON and again against the live state when approved. Order amounts must match the ordering logic.
+- **Offline plans** are rule-based (`rulePlan`), not recorded answers, so they work for any state.
+- **Each action is tested first:** the card shows the result of replaying the day with and without it. The replay knows the rest of the simulated day. A real version would have to use the forecast instead.
+- **Pause timing:** Spine suggests the latest safe time, not "now". In the replay, pausing at 6:30pm loses more sales than it saves, because the dish could have kept selling for over an hour.
+- **Two extra tools** beyond the upgrade prompt: `disputePayout` and `requestQuote`, because a payout gap and a price spike had nothing to act with. Those two situations and a morning run-out have 1-action plans rather than 2 to 4, because padding them would be noise.
+- **Supplier orders:** drafted before service they arrive today, and during service they arrive tomorrow.
+- **Holds end after 15 minutes**, so an order can't be forgotten.
+
 ## Simulator
 - **State:** every tab derives state from `getSimState(control, data, nowMs)`, with `control` in `localStorage`. There's no server state. All screens must run in one browser on one machine, which is fine for a recorded demo.
 - **Order status** comes from the clock: an order is on the queue until 3 minutes after its start time, then cooking until its ready time. There's no "started" button for cooks.
@@ -25,9 +35,9 @@ Running log of choices and assumptions. Add a line whenever CLAUDE.md doesn't co
 
 ## Stock and staffing
 - **Supplier order** multiplies today's forecast by the number of days (2), rather than forecasting each day separately.
-- **Stockouts don't stop sales in the simulator.** An item that ran out keeps selling, and the stockout is reported.
-- **Picking up extra stock** is a Morning button we added so the happy path can resolve the rice warning. It's what connects the morning warning to a clean close.
-- **Pausing an item** is only recorded. It doesn't change orders, and the screen says nothing is sent to the apps.
+- **Running out now stops sales.** Apps keep selling for 15 minutes until someone notices, and those orders are cancelled and refunded. Once a customer can see a dish isn't available, half pick another dish from the same station and half skip it. These are assumptions, and the same order always makes the same choice so runs match.
+- **Packing is the kitchen's bottleneck in the model.** Each order waits its turn with the packers. Cooking capacity isn't limited, which is why starting every order on arrival shows no late orders.
+- **The packing buffer went from 3 to 5 minutes,** because 3 made the queue itself cause late orders.
 - **Staffing:** one person covers one station per hour. Dev isn't off on the demo Saturday, because Dev is the only wok cook and the kitchen couldn't run; the risk message says there's no backup instead.
 
 ## Books

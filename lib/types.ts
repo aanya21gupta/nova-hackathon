@@ -176,16 +176,58 @@ export interface QueueEntry {
   label: QueueLabel;
 }
 
+/** The agent's tools. Every change Spine can make to the day goes through one of these. */
+export type ToolCall =
+  /** Stop selling an item on these channels, from now or a later time. */
+  | { tool: "pauseItem"; itemId: string; channels: Channel[]; fromMinute?: Minutes }
+  | { tool: "resumeItem"; itemId: string; channels: Channel[] }
+  /** Add prep time to new orders until a set time. */
+  | { tool: "setBusyMode"; channel: Channel | "all"; extraMinutes: number; untilTime: Minutes }
+  /** Ask an off-shift staff member to come in. They stay until close. */
+  | { tool: "requestStaff"; staffId: string; startTime: Minutes; station: Skill; reason: string }
+  | { tool: "draftSupplierOrder"; supplierId: string; lines: { ingredientId: string; qty: number }[] }
+  | { tool: "holdOrder"; orderId: string }
+  | { tool: "fireOrder"; orderId: string }
+  | { tool: "markOrderReady"; orderId: string }
+  /** Beyond the prompt's list: a payout gap and a price spike need these. */
+  | { tool: "disputePayout"; channel: Channel; orderIds: string[] }
+  | { tool: "requestQuote"; supplierId: string; ingredientId: string };
+
+export type ActionSource = "agent" | "owner" | "voice";
+
+/** A tool call that has been approved and has changed the day. Stored, so it's in every tab. */
+export interface AppliedAction {
+  id: string;
+  call: ToolCall;
+  /** Time on the restaurant clock when it was approved. */
+  atMinute: Minutes;
+  by: ActionSource;
+  /** Plain English, e.g. "Paused Pad Thai on DoorDash and App B from 7:40pm". */
+  result: string;
+  /** e.g. "Pad Thai noodles run-out: 8:15pm → no run-out today". */
+  beforeAfter?: string;
+  /** Clearly labeled calls to outside systems. All are simulated. */
+  mockCalls: string[];
+  /** Supplier orders only: when the stock can be used. Null means it arrives after today. */
+  stockArrivesAt?: Minutes | null;
+}
+
+/** One step of the agent's plan, before approval. */
+export interface PlannedAction {
+  id: string;
+  call: ToolCall;
+  /** One line. May only cite numbers from the state the agent was given. */
+  reason: string;
+}
+
 export type Trigger =
   | { type: "rush"; atMinute: Minutes }
   | { type: "driverDelay"; atMinute: Minutes; orderId: string; delayMinutes: number }
   | { type: "payoutGap" }
   /** An invoice that has been scanned and checked. Flagged ones don't change prices. */
   | { type: "invoice"; invoice: Invoice }
-  /** Mai picked up extra stock today, so it lasts longer. */
-  | { type: "extraStock"; ingredientId: string; qty: number }
-  /** Mai paused an item on delivery apps. The prototype only records this. */
-  | { type: "pauseItem"; menuItemId: string };
+  /** Demo only: the next agent plan includes a bad suggestion, to show it being rejected. */
+  | { type: "badSuggestion" };
 
 export type InvoiceSample = "clean" | "priceSpike" | "badScan";
 
@@ -198,10 +240,15 @@ export interface SimControl {
   /** Simulated minutes per real second. */
   speed: number;
   paused: boolean;
+  /** Things that happen to the restaurant: a rush, a late driver, an invoice. */
   triggers: Trigger[];
+  /** Things approved in response. The same day replayed without these is "without Spine". */
+  actions: AppliedAction[];
+  /** Planned actions the owner skipped. */
+  skipped: string[];
 }
 
-export type AlertKind = "runOut" | "pauseItem" | "understaffed" | "reforecast" | "driverDelay";
+export type AlertKind = "runOut" | "understaffed" | "reforecast" | "driverDelay" | "cancelled";
 
 export interface Alert {
   id: string;
@@ -217,8 +264,20 @@ export interface Alert {
 
 export interface SimState {
   now: Minutes;
-  /** Orders placed so far, with driver delays applied. */
+  /** Orders the kitchen makes, with driver delays, busy mode and swaps applied. */
   orders: Order[];
+  /** Every order customers tried to place, as they placed it. This is demand. */
+  placed: Order[];
+  /** Orders an app sold after the item had run out, so they were cancelled and refunded. */
+  cancelledOrders: Order[];
+  /** Value of the dishes customers couldn't get, including refunds. */
+  lostSales: number;
+  /** What actually ran out, and when. */
+  stockouts: RunOut[];
+  /** Approved actions in effect at this moment. */
+  actions: AppliedAction[];
+  /** Items paused or scheduled to pause, by channel. */
+  pausedItems: { itemId: string; channels: Channel[]; fromMinute: Minutes }[];
   queue: QueueEntry[];
   /** The plan made this morning. Never changes during the day. */
   baseForecast: Forecast;
@@ -232,7 +291,6 @@ export interface SimState {
   delayedOrders: Record<string, number>;
   /** Invoices scanned today, flagged or not. */
   invoices: Invoice[];
-  pausedItemIds: string[];
   payoutGapActive: boolean;
   /** The data with any extra stock added. Use this, not raw data, for stock maths. */
   effectiveData: RestaurantData;
@@ -304,6 +362,12 @@ export interface DaySummary {
   date: string;
   forecastOrders: number;
   actualOrders: number;
+  /** Orders that couldn't be made at all. */
+  lostOrders: number;
+  /** Of those, the ones an app sold and then had to cancel and refund. */
+  cancelledOrders: number;
+  /** Value of the dishes customers couldn't get, including refunds. */
+  lostSales: number;
   /** actualOrders - forecastOrders, so a recap can say "6 more than planned". */
   orderDifference: number;
   totalRevenue: number;
@@ -318,6 +382,8 @@ export interface DaySummary {
   reforecastPercent: number | null;
   reforecastAtLabel: string | null;
   driverDelays: number;
+  /** What was approved today, in plain English. */
+  actionsTaken: string[];
   /** Invoices flagged for Mai to check, and not used for prices. */
   flaggedInvoices: { vendor: string; flags: string[] }[];
   bestItems: { menuItemId: string; name: string; sold: number; revenue: number }[];
