@@ -1,9 +1,13 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { ActionLog } from "@/components/ActionLog";
+import { AgentPlans } from "@/components/AgentPlan";
 import { PlanVsActualChart } from "@/components/charts";
+import { SpineChanged } from "@/components/SpineChanged";
 import { Button, Card, NextStep, Notice, Page, PageTitle, Stat } from "@/components/ui";
 import { closeBooks } from "@/lib/books";
+import { compareDays } from "@/lib/compare";
 import { CHANNEL_NAMES, formatMoney, formatTime, orderLabel } from "@/lib/format";
 import { comparePrices } from "@/lib/invoice";
 import { scanFile, scanSample } from "@/lib/invoiceClient";
@@ -63,11 +67,32 @@ function RecapCard({ summary }: { summary: DaySummary }) {
 }
 
 export default function ClosePage() {
-  const { state, data, jumpTo, fire, reset } = useSim();
+  const { control, state, data, jumpTo, fire, reset } = useSim();
   const router = useRouter();
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
-  const summary = useMemo(() => closeBooks(state, data), [state, data]);
+  const books = useMemo(() => closeBooks(state, data), [state, data]);
+  // The replay only makes sense for a whole day.
+  const comparison = useMemo(() => (state.serviceOver ? compareDays(control, data) : null), [state.serviceOver, control, data]);
+  const summary = useMemo<DaySummary>(
+    () =>
+      comparison
+        ? {
+            ...books,
+            spine: {
+              saved: comparison.saved,
+              usedSuggestedPlan: comparison.usedSuggestedPlan,
+              lostSalesWithout: comparison.without.lostSales,
+              lostSalesWith: comparison.with.lostSales,
+              foodWaitWithout: comparison.without.foodWaitMinutes,
+              foodWaitWith: comparison.with.foodWaitMinutes,
+              lateOrdersWithout: comparison.without.lateOrders,
+              lateOrdersWith: comparison.with.lateOrders,
+            },
+          }
+        : books,
+    [books, comparison],
+  );
   const totalArrived = summary.payouts.reduce((sum, p) => sum + p.actualNet, 0);
 
   async function scan(run: () => Promise<Invoice>) {
@@ -106,6 +131,10 @@ export default function ClosePage() {
         <Stat label="Labor" value={`${summary.laborPercent}%`} detail={`${formatMoney(summary.laborCost)} in wages`} />
         <Stat label="Money arriving" value={formatMoney(totalArrived)} detail="After delivery fees" />
       </div>
+
+      <AgentPlans kinds={["payoutGap", "priceSpike"]} />
+
+      {comparison && <SpineChanged comparison={comparison} />}
 
       {/* Only after close: a recap of half a day would mislead, and each change would be a paid AI call. */}
       {state.serviceOver ? (
@@ -228,6 +257,8 @@ export default function ClosePage() {
       <Card title="Plan and real orders">
         <PlanVsActualChart baseForecast={state.baseForecast} forecast={state.baseForecast} actuals={state.actuals} now={state.now} />
       </Card>
+
+      <ActionLog />
 
       <NextStep title={state.serviceOver ? "That's the day" : "Still in service"} back={{ href: "/service", label: "Back to Service" }}>
         <Button onClick={() => { reset(); router.push("/"); }}>Start a new day</Button>

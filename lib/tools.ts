@@ -1,5 +1,6 @@
 // The agent's tools. Every change to the day goes through here, whoever asks for it, so
 // the same validation protects against a bad AI suggestion and a mistyped edit.
+import { REFORECAST_CHECK_MINUTES } from "./forecast";
 import { CHANNEL_NAMES, formatTime, orderLabel, SKILL_NAMES } from "./format";
 import { findRunOuts } from "./ordering";
 import { buildStaffingPlan } from "./staffing";
@@ -192,7 +193,9 @@ function runOutLabel(state: SimState, ingredientId: string, data: RestaurantData
     return planned?.runsOutLabel ?? "no run-out today";
   }
   if (state.stockouts.some((s) => s.ingredientId === ingredientId)) return "already out";
-  const found = findRunOuts(state.forecast, state.effectiveData, state.now, state.orders).find((r) => r.ingredientId === ingredientId);
+  // The same half-hour check as the alerts, so the two can't disagree on screen.
+  const checkAt = Math.floor(state.now / REFORECAST_CHECK_MINUTES) * REFORECAST_CHECK_MINUTES;
+  const found = findRunOuts(state.forecast, state.effectiveData, checkAt, state.orders).find((r) => r.ingredientId === ingredientId);
   return found?.runsOutLabel ?? "no run-out today";
 }
 

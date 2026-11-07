@@ -384,6 +384,18 @@ export interface DaySummary {
   driverDelays: number;
   /** What was approved today, in plain English. */
   actionsTaken: string[];
+  /** The same day replayed without Spine. Added after close. */
+  spine?: {
+    saved: number;
+    /** True if nothing was approved, so this describes Spine's suggested plan. */
+    usedSuggestedPlan: boolean;
+    lostSalesWithout: number;
+    lostSalesWith: number;
+    foodWaitWithout: number;
+    foodWaitWith: number;
+    lateOrdersWithout: number;
+    lateOrdersWith: number;
+  };
   /** Invoices flagged for Mai to check, and not used for prices. */
   flaggedInvoices: { vendor: string; flags: string[] }[];
   bestItems: { menuItemId: string; name: string; sold: number; revenue: number }[];

@@ -107,12 +107,13 @@ export function buildAgentContext(situation: Situation, state: SimState, data: R
   const actual = state.placed.filter((o) => o.placedAt > checkAt - 60 && o.placedAt <= checkAt).length;
 
   const supplierLines = buildSupplierOrder(forecast, stock, 2);
-  const runOuts = (options.morningView ? findRunOuts(forecast, stock, data.openHour * 60) : findRunOuts(forecast, stock, now, state.orders))
+  const runOuts = (options.morningView ? findRunOuts(forecast, stock, data.openHour * 60) : findRunOuts(forecast, stock, checkAt, state.orders))
     .filter((r) => r.runsOutAt !== null)
     .map((r) => {
       const ingredient = stock.ingredients.find((i) => i.id === r.ingredientId);
       const item = biggestUser(r.ingredientId, forecast, data);
-      const latest = item ? latestPauseTime(forecast, stock, r.ingredientId, item.id, DELIVERY, now, state.orders) : now;
+      // Worked out from the same check as the run-out time, and never earlier than now.
+      const latest = Math.max(item ? latestPauseTime(forecast, stock, r.ingredientId, item.id, DELIVERY, checkAt, state.orders) : now, now);
       const line = supplierLines.find((l) => l.ingredientId === r.ingredientId);
       return {
         ingredientId: r.ingredientId,

@@ -52,6 +52,14 @@ describe("pauseItem and resumeItem", () => {
     expect(result.ok && result.action.beforeAfter).toBe("Pad Thai noodles run-out: 8:15pm → no run-out today");
   });
 
+  it("agrees with the alert at any minute before the next check", () => {
+    const later = 18 * 60 + 33;
+    const alert = getSimStateAt(rush, data, later).alerts.find((a) => a.id === "runout-noodles");
+    const result = applyToolCall(rush, call, "agent", later, data);
+    expect(alert?.message).toBe("Pad Thai noodles will run out by 8:15pm.");
+    expect(result.ok && result.action.beforeAfter).toBe("Pad Thai noodles run-out: 8:15pm → no run-out today");
+  });
+
   it("writes labeled mock calls", () => {
     const result = applyToolCall(rush, call, "agent", at630, data);
     expect(result.ok && result.action.mockCalls[0]).toContain("DoorDash Merchant API (mock)");
@@ -208,6 +216,17 @@ describe("the agent", () => {
   it("plans 2 to 4 actions for the rush", () => {
     expect(plan.length).toBeGreaterThanOrEqual(2);
     expect(plan.length).toBeLessThanOrEqual(4);
+  });
+
+  it("gives the same pause time and result at every minute before the next check", () => {
+    for (let minute = at630; minute < at630 + 30; minute++) {
+      const atMinute = getSimStateAt(rush, data, minute);
+      const rushNow = findSituations(atMinute, data).find((s) => s.kind === "rush") as Situation;
+      const pause = rulePlan(buildAgentContext(rushNow, atMinute, data)).find((p) => p.call.tool === "pauseItem" && p.call.itemId === "pad-thai");
+      expect(pause?.call).toMatchObject({ itemId: "pad-thai", fromMinute: 19 * 60 + 50 });
+      const result = applyToolCall(rush, pause?.call as ToolCall, "agent", minute, data);
+      expect(result.ok && result.action.beforeAfter).toBe("Pad Thai noodles run-out: 8:15pm → no run-out today");
+    }
   });
 
   it("every action in the rule plan is valid and can be applied", () => {

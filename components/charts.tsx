@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { formatHour } from "@/lib/format";
+import type { ComparisonRow } from "@/lib/compare";
 import type { ActualHour, Forecast, Minutes } from "@/lib/types";
 
 const REAL_COLOR = "#1f7fa8";
@@ -163,6 +164,44 @@ export function PlanVsActualChart({
         headers={updated ? ["Hour", "Morning plan", "Updated plan", "Real orders"] : ["Hour", "Morning plan", "Real orders"]}
         rows={data.map((d) => (updated ? [d.label, d.plan, d.updatedPlan ?? "", d.actual ?? "–"] : [d.label, d.plan, d.actual ?? "–"]))}
       />
+    </div>
+  );
+}
+
+function Swatch({ color, children }: { color: string; children: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-base">
+      <span className="size-3 rounded-sm" style={{ background: color }} aria-hidden />
+      {children}
+    </span>
+  );
+}
+
+/** The minutes from the side-by-side table, as bars. Same axis, same unit. */
+export function ComparisonChart({ rows }: { rows: ComparisonRow[] }) {
+  const data = rows.map((row) => ({ label: row.label, without: row.without, with: row.with }));
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap gap-x-5 gap-y-1">
+        <Swatch color={PLAN_COLOR}>Without Spine</Swatch>
+        <Swatch color={REAL_COLOR}>With Spine</Swatch>
+      </div>
+      <div className="h-56 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 22, right: 4, left: 4, bottom: 0 }} barGap={2} barCategoryGap="28%">
+            <CartesianGrid vertical={false} stroke={GRID_COLOR} />
+            <XAxis dataKey="label" tick={AXIS_TEXT} tickLine={false} axisLine={{ stroke: GRID_COLOR }} interval={0} />
+            <YAxis hide />
+            <Tooltip formatter={(value) => [`${Number(value).toLocaleString("en-US")} minutes`]} contentStyle={{ fontSize: 16, borderRadius: 12, border: "1px solid #e5e1d6" }} cursor={{ fill: "#f7f5ef" }} />
+            <Bar dataKey="without" name="Without Spine" fill={PLAN_COLOR} radius={[4, 4, 0, 0]} isAnimationActive={false}>
+              <LabelList dataKey="without" position="top" style={{ fontSize: 15, fill: "#23271f" }} formatter={(value) => Number(value).toLocaleString("en-US")} />
+            </Bar>
+            <Bar dataKey="with" name="With Spine" fill={REAL_COLOR} radius={[4, 4, 0, 0]} isAnimationActive={false}>
+              <LabelList dataKey="with" position="top" style={{ fontSize: 15, fill: "#23271f" }} formatter={(value) => Number(value).toLocaleString("en-US")} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

@@ -230,7 +230,7 @@ export function AgentPlans({ kinds }: { kinds?: SituationKind[] }) {
   return (
     <>
       {situations.map((situation, index) => (
-        <SituationPlan key={situation.id} situation={situation} showBadSuggestion={index === 0} />
+        <SituationPlan key={situation.id} situation={situation} showBadSuggestion={index === 0 && situation.kind !== "payoutGap" && situation.kind !== "priceSpike"} />
       ))}
     </>
   );

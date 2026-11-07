@@ -36,19 +36,36 @@ export function templateRecap(s: DaySummary): Recap {
     sentences.push(`The ${flagged.vendor} invoice didn't add up, so it wasn't used. Please check it.`);
   }
 
+  if (s.spine && Math.abs(s.spine.saved) >= 1) {
+    if (s.spine.saved > 0) {
+      sentences.push(
+        s.spine.usedSuggestedPlan
+          ? `Spine's plan could have kept about ${formatMoney(s.spine.saved)} more than a day without it.`
+          : `What you approved kept about ${formatMoney(s.spine.saved)} more than a day without Spine.`,
+      );
+    } else {
+      sentences.push(`What you approved cost about ${formatMoney(Math.abs(s.spine.saved))} compared with a day without Spine.`);
+    }
+  }
+
   const recommendations: string[] = [];
+  // Don't recommend what's already been done today.
+  const done = (test: (action: string) => boolean) => s.actionsTaken.some(test);
   for (const gap of s.payoutGaps) {
+    if (done((a) => a.startsWith(`Dispute ${CHANNEL_NAMES[gap.channel]}`))) continue;
     recommendations.push(`Ask ${CHANNEL_NAMES[gap.channel]} about orders ${gap.mismatchedOrderIds.map(orderLabel).join(", ")}.`);
   }
   for (const change of s.priceChanges) {
     const dish = [...change.affectedDishes].sort((a, b) => a.marginChangePerDish - b.marginChangePerDish)[0];
-    if (change.percentChange > 0 && dish) {
+    const quoted = done((a) => a.includes(`better price on ${change.ingredientName.toLowerCase()}`));
+    if (change.percentChange > 0 && dish && !quoted) {
       recommendations.push(
         `Get another quote on ${change.ingredientName.toLowerCase()}, or raise the price of ${dish.name}, which loses ${formatMoney(Math.abs(dish.marginChangePerDish), 2)} a plate.`,
       );
     }
   }
   for (const stockout of s.stockouts) {
+    if (done((a) => a.startsWith("Order") && a.includes(stockout.ingredientName))) continue;
     recommendations.push(`Order more ${stockout.ingredientName.toLowerCase()} before the next busy night.`);
   }
   const homeGames = s.learnings.find((l) => l.id === "home-game-saturdays");

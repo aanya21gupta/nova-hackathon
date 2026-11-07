@@ -22,6 +22,13 @@ Running log of choices and assumptions. Add a line whenever CLAUDE.md doesn't co
 - **Supplier orders:** drafted before service they arrive today, and during service they arrive tomorrow.
 - **Holds end after 15 minutes**, so an order can't be forgotten.
 
+## What Spine changed (M2)
+- **"Without Spine" also means no fire-now queue:** cooks start each order when it comes in. Keeping the queue in both runs would hide the main thing it does. The card says this.
+- **Net dollars = money kept with Spine − money kept without.** Money kept = sales − delivery fees − food cost − wages − payout money still missing. The formula and every assumption are on the card.
+- **Late orders and waiting aren't given a dollar value,** because any number would be invented. They're shown beside the money.
+- **The result isn't always flattering.** Without the queue there are few late orders, because the model doesn't limit cooking capacity. It shows up as food left waiting instead. The card says so rather than hiding it.
+- **If nothing was approved,** the "with" run is the agent's rule-based plan, labeled "could have saved".
+
 ## Simulator
 - **State:** every tab derives state from `getSimState(control, data, nowMs)`, with `control` in `localStorage`. There's no server state. All screens must run in one browser on one machine, which is fine for a recorded demo.
 - **Order status** comes from the clock: an order is on the queue until 3 minutes after its start time, then cooking until its ready time. There's no "started" button for cooks.
