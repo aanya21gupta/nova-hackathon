@@ -3,6 +3,8 @@
 import { CHANNEL_NAMES, formatTime, orderLabel } from "@/lib/format";
 import type { MenuItem, QueueEntry, QueueLabel } from "@/lib/types";
 import { useSim } from "@/lib/useSim";
+import { activeBusyModes, readyByVoice, useVoiceLog } from "@/lib/voiceActions";
+import { VoiceControl } from "@/components/VoiceControl";
 
 const COLUMNS: { label: QueueLabel; limit: number; header: string; card: string }[] = [
   { label: "FIRE NOW", limit: 3, header: "bg-red-600 text-white", card: "border-red-500/80 bg-red-950/70" },
@@ -40,19 +42,36 @@ function OrderCard({ entry, menu, column, delayMinutes }: { entry: QueueEntry; m
 
 export default function KitchenPage() {
   const { state, data, running } = useSim();
+  // M4: voice actions. Orders marked ready by voice leave the board (see lib/voiceActions.ts).
+  const voice = useVoiceLog();
+  const readyIds = readyByVoice(voice.log, state.now);
+  const busy = activeBusyModes(voice.log, state.now);
+  const cooking = state.orders.filter((o) => o.status === "cooking" && !readyIds.has(o.id)).length;
+  const paused = state.pausedItemIds.map((id) => itemName(data.menu, id));
 
   return (
     <div className="flex min-h-[calc(100vh-2.5rem)] flex-col bg-neutral-950 p-4 text-white">
       <header className="mb-3 flex items-baseline justify-between gap-4">
         <h1 className="text-6xl font-bold tabular-nums">{formatTime(state.now)}</h1>
         <div className="text-4xl font-semibold text-neutral-200 tabular-nums">
-          {state.serviceOver ? "Closed" : `${state.cookingCount} cooking${running ? "" : " · paused"}`}
+          {state.serviceOver ? "Closed" : `${cooking} cooking${running ? "" : " · paused"}`}
         </div>
       </header>
+      {(paused.length > 0 || busy.length > 0) && (
+        <div className="mb-3 flex flex-wrap gap-3 text-3xl font-bold">
+          {paused.length > 0 && <div className="rounded-xl bg-fuchsia-300 px-4 py-1.5 text-black">86&apos;d on delivery: {paused.join(", ")}</div>}
+          {busy.map((b, i) => (
+            <div key={i} className="rounded-xl bg-sky-300 px-4 py-1.5 text-black tabular-nums">
+              Busy mode +{b.extraMinutes} min until {formatTime(b.untilTime)}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="grid flex-1 grid-cols-3 gap-4">
         {COLUMNS.map((column) => {
           // A delayed order goes first, so the cook can see why it moved, even when the column is full.
           const entries = state.queue
+            .filter((e) => !readyIds.has(e.orderId))
             .filter((e) => e.label === column.label)
             .sort((a, b) => Number(state.delayedOrders[b.orderId] !== undefined) - Number(state.delayedOrders[a.orderId] !== undefined));
           return (
@@ -71,6 +90,7 @@ export default function KitchenPage() {
           );
         })}
       </div>
+      <VoiceControl log={voice.log} add={voice.add} clear={voice.clear} />
     </div>
   );
 }
