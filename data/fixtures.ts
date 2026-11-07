@@ -11,11 +11,27 @@ const orders: Order[] = [
   { id: "o4", channel: "doordash", placedAt: h(18, 8), items: [{ menuItemId: "green-curry", qty: 2 }], targetReadyAt: h(18, 40), driverEtaAt: h(18, 40), status: "queued" },
 ];
 
-export const fixtureData: RestaurantData = {
+/**
+ * The complete demo restaurant profile. Swap this object for another profile
+ * and the app, setup flow, forecast and service views all read the same shape.
+ */
+export const restaurantProfile: RestaurantData = {
+  id: "basil-and-rice",
+  name: "Basil & Rice",
+  timezone: "America/New_York",
   date: "2026-11-07",
   weekday: 6,
   openHour: 11,
   closeHour: 21,
+  channels: [
+    { id: "direct", name: "Toast POS", kind: "pos" },
+    { id: "doordash", name: "DoorDash", kind: "delivery" },
+    { id: "appB", name: "Other delivery", kind: "delivery" },
+  ],
+  suppliers: [
+    { id: "asian-foods", name: "Asian Foods" },
+    { id: "valley-meats", name: "Valley Meats" },
+  ],
   menu: [
     { id: "pad-thai", name: "Pad Thai", price: 15, prepMinutes: 8, station: "wok", recipe: [{ ingredientId: "noodles", qty: 0.25, unit: "lb" }, { ingredientId: "chicken", qty: 0.3, unit: "lb" }] },
     { id: "green-curry", name: "Green Curry", price: 16, prepMinutes: 10, station: "wok", recipe: [{ ingredientId: "chicken", qty: 0.35, unit: "lb" }, { ingredientId: "rice", qty: 0.4, unit: "lb" }] },
@@ -66,6 +82,9 @@ export const fixtureData: RestaurantData = {
     },
   ],
 };
+
+// Backwards-compatible name for the existing fixture tests and demo helpers.
+export const fixtureData = restaurantProfile;
 
 export const fixtureForecast: Forecast = {
   date: "2026-11-07",
