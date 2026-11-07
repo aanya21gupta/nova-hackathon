@@ -1,33 +1,26 @@
 import type { Metadata } from "next";
+import { Figtree, Fraunces } from "next/font/google";
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { AppHeader } from "@/components/AppHeader";
+import { SimProvider } from "@/lib/useSim";
 import "./globals.css";
+
+const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree" });
+const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces" });
 
 export const metadata: Metadata = {
   title: "Spine",
   description: "One forecast runs the whole restaurant day.",
 };
 
-const NAV = [
-  { href: "/morning", label: "Morning" },
-  { href: "/service", label: "Service" },
-  { href: "/close", label: "Close" },
-];
-
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${figtree.variable} ${fraunces.variable}`}>
       <body className="min-h-screen">
-        <div className="bg-amber-200 px-4 py-1 text-center text-base">Prototype with synthetic data</div>
-        <nav className="flex flex-wrap items-center gap-6 border-b border-neutral-300 px-4 py-3 text-2xl font-semibold">
-          <Link href="/">Basil &amp; Rice</Link>
-          {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="underline-offset-4 hover:underline">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <main className="p-4">{children}</main>
+        <SimProvider>
+          <AppHeader />
+          <main>{children}</main>
+        </SimProvider>
       </body>
     </html>
   );

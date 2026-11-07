@@ -108,6 +108,8 @@ export interface Forecast {
   modifiers: string[];
   /** Set by reforecast(). 1.35 means remaining hours were scaled up by 35%. */
   scaledBy?: number;
+  /** The time the re-forecast was made. */
+  reforecastAt?: Minutes;
 }
 
 export interface ActualHour {
@@ -138,6 +140,8 @@ export interface RunOut {
   ingredientName: string;
   /** Null means it lasts through close. */
   runsOutAt: Minutes | null;
+  /** runsOutAt to the nearest 5 minutes, e.g. "7:40pm". This is what screens show. */
+  runsOutLabel: string | null;
 }
 
 export interface StaffingHour {
@@ -176,7 +180,12 @@ export type Trigger =
   | { type: "rush"; atMinute: Minutes }
   | { type: "driverDelay"; atMinute: Minutes; orderId: string; delayMinutes: number }
   | { type: "payoutGap" }
-  | { type: "invoice"; sample: InvoiceSample };
+  /** An invoice that has been scanned and checked. Flagged ones don't change prices. */
+  | { type: "invoice"; invoice: Invoice }
+  /** Mai picked up extra stock today, so it lasts longer. */
+  | { type: "extraStock"; ingredientId: string; qty: number }
+  /** Mai paused an item on delivery apps. The prototype only records this. */
+  | { type: "pauseItem"; menuItemId: string };
 
 export type InvoiceSample = "clean" | "priceSpike" | "badScan";
 
@@ -211,9 +220,22 @@ export interface SimState {
   /** Orders placed so far, with driver delays applied. */
   orders: Order[];
   queue: QueueEntry[];
+  /** The plan made this morning. Never changes during the day. */
+  baseForecast: Forecast;
+  /** The current plan: baseForecast, re-forecast if orders have drifted. */
   forecast: Forecast;
   actuals: ActualHour[];
   alerts: Alert[];
+  /** Orders cooking right now. */
+  cookingCount: number;
+  /** Orders moved by a driver delay, keyed by order id, in minutes. */
+  delayedOrders: Record<string, number>;
+  /** Invoices scanned today, flagged or not. */
+  invoices: Invoice[];
+  pausedItemIds: string[];
+  payoutGapActive: boolean;
+  /** The data with any extra stock added. Use this, not raw data, for stock maths. */
+  effectiveData: RestaurantData;
   /** True once the clock has passed closing time. */
   serviceOver: boolean;
 }
@@ -236,6 +258,8 @@ export interface Invoice {
   total: number;
   confidence: number;
   flags: string[];
+  /** How this reading was produced. */
+  source?: "live" | "cache" | "fallback";
 }
 
 export interface PriceChange {
@@ -244,8 +268,10 @@ export interface PriceChange {
   oldPrice: number;
   newPrice: number;
   percentChange: number;
-  /** Margin impact per dish, in dollars. */
-  affectedDishes: { menuItemId: string; name: string; marginChangePerDish: number }[];
+  /** Margin impact per dish, in dollars. Negative means Mai keeps less. */
+  affectedDishes: { menuItemId: string; name: string; marginChangePerDish: number; soldToday: number }[];
+  /** Total margin impact on today's sales, in dollars. */
+  marginChangeToday: number;
 }
 
 export interface Payout {
@@ -278,10 +304,22 @@ export interface DaySummary {
   date: string;
   forecastOrders: number;
   actualOrders: number;
+  /** actualOrders - forecastOrders, so a recap can say "6 more than planned". */
+  orderDifference: number;
+  totalRevenue: number;
   revenueByChannel: Record<Channel, number>;
   feesByChannel: Record<Channel, number>;
+  payouts: Payout[];
+  foodCost: number;
   foodCostPercent: number;
+  laborCost: number;
   laborPercent: number;
+  /** The first re-forecast of the day: 35 means 35% above plan, -25 means 25% below. Null if none. */
+  reforecastPercent: number | null;
+  reforecastAtLabel: string | null;
+  driverDelays: number;
+  /** Invoices flagged for Mai to check, and not used for prices. */
+  flaggedInvoices: { vendor: string; flags: string[] }[];
   bestItems: { menuItemId: string; name: string; sold: number; revenue: number }[];
   worstItems: { menuItemId: string; name: string; sold: number; revenue: number }[];
   priceChanges: PriceChange[];
@@ -316,9 +354,8 @@ export interface RestaurantData {
   orders: Order[];
   /** Extra orders that only count after the rush trigger fires. */
   rushOrders: Order[];
+  /** Synthetic payout reports. Fee rates per channel come from fees / grossSales. */
   payouts: Payout[];
-  /** Payout figures used instead of payouts once the payoutGap trigger fires. */
-  payoutsWithGap: Payout[];
   /** Orders the payout report leaves out once the payoutGap trigger fires. */
   payoutGapOrderIds: string[];
   /** Earlier invoices, used to compare unit prices. */

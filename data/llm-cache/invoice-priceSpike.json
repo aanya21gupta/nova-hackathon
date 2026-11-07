@@ -1,0 +1,10 @@
+{
+  "vendor": "Valley Meats",
+  "date": "2026-11-07",
+  "lines": [
+    { "rawName": "Chicken thighs, boneless", "qty": 40, "unitPrice": 4.27, "lineTotal": 170.8 },
+    { "rawName": "Ground pork", "qty": 10, "unitPrice": 3.2, "lineTotal": 32 }
+  ],
+  "total": 202.8,
+  "confidence": 0.98
+}

@@ -1,0 +1,11 @@
+{
+  "vendor": "Thai Harvest Supply",
+  "date": "2026-11-07",
+  "lines": [
+    { "rawName": "Jasmine rice", "qty": 50, "unitPrice": 1.6, "lineTotal": 80 },
+    { "rawName": "Pad Thai noodles", "qty": 20, "unitPrice": 3.4, "lineTotal": 68 },
+    { "rawName": "Curry base", "qty": 8, "unitPrice": 11, "lineTotal": 98 }
+  ],
+  "total": 240,
+  "confidence": 0.55
+}
