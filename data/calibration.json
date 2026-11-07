@@ -1,0 +1,90 @@
+{
+  "generatedAt": "2026-11-07",
+  "note": "Derived summary stats only. Regenerate with: npx tsx scripts/fetch-data.ts && npx tsx scripts/calibrate.ts",
+  "pizza": {
+    "source": "Rdatasets gt::pizzaplace (public domain), one pizza restaurant, 2015",
+    "orders": 21350,
+    "daysOpen": 358,
+    "ordersPerDay": 59.6,
+    "itemsPerOrder": 2.32,
+    "weekdayMultiplier": {
+      "Sun": 0.85,
+      "Mon": 0.98,
+      "Tue": 0.96,
+      "Wed": 0.97,
+      "Thu": 1.04,
+      "Fri": 1.19,
+      "Sat": 1.02
+    },
+    "hourShare": {
+      "11": 0.058,
+      "12": 0.118,
+      "13": 0.115,
+      "14": 0.069,
+      "15": 0.069,
+      "16": 0.09,
+      "17": 0.109,
+      "18": 0.112,
+      "19": 0.094,
+      "20": 0.077,
+      "21": 0.056,
+      "22": 0.031
+    }
+  },
+  "doordash": {
+    "source": "DoorDash take-home historical_data.csv (MIT per Kaggle listing; DoorDash added noise). Use as rough shapes only.",
+    "deliveries": 197360,
+    "thaiDeliveries": 7223,
+    "deliveryMinutes": {
+      "p10": 28.3,
+      "median": 44.3,
+      "p90": 70.6
+    },
+    "thaiDeliveryMinutes": {
+      "median": 45.1,
+      "p90": 71.6
+    },
+    "kitchenAndWaitMinutes": {
+      "p25": 21.2,
+      "median": 30,
+      "p75": 41.6,
+      "p90": 55.5
+    },
+    "shareRunningLateBy": {
+      "5min": 0.376,
+      "12min": 0.244,
+      "20min": 0.144
+    },
+    "hourShareLocalTime": {
+      "8": 0.011,
+      "9": 0.017,
+      "10": 0.026,
+      "11": 0.069,
+      "12": 0.079,
+      "13": 0.058,
+      "14": 0.045,
+      "15": 0.041,
+      "16": 0.064,
+      "17": 0.143,
+      "18": 0.187,
+      "19": 0.137,
+      "20": 0.077,
+      "21": 0.036,
+      "22": 0.007
+    }
+  },
+  "weather": {
+    "source": "Open-Meteo historical archive (CC BY 4.0), openmeteo_pittsburgh_2025.json",
+    "location": {
+      "lat": 40.45694,
+      "lon": -79.97177
+    },
+    "days": 365,
+    "shareOfDaysWithRain": {
+      "1mm+": 0.405,
+      "5mm+": 0.208,
+      "10mm+": 0.134
+    },
+    "saturdaysWithRain5mm": 8
+  }
+}
