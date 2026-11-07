@@ -73,6 +73,7 @@ Running log of choices and assumptions. Add a line whenever CLAUDE.md doesn't co
 
 ## M4: Voice commands in the kitchen
 - Built separately from M1, then merged. Voice now runs M1's tools through `lib/voiceActions.ts`, so "86" really zeroes the forecast on the apps, busy mode really moves promised times, and "order ready" really takes an order off the queue. It's all validated the same way and appears in the shared Action log as "Voice". The separate voice log was removed.
+- The voice panel is pinned to the bottom of the kitchen screen, so the mic, what was heard and the Undo button stay in view on a laptop without scrolling. It shows the last two voice actions. The Action log has all of them.
 - Customer-facing actions (86, busy mode) wait out the 5-second Undo window before applying, so no undo API was needed in shared code.
 - Keyword rules run offline first; only unmatched phrases go to /api/voice (runLLM job "voice"). Its output is validated on the server and again in the browser; offline it returns {call: null}.
 - Mic path (hold-to-talk / spacebar) not tested in the automated browser; the typed path was.

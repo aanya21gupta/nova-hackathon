@@ -9,6 +9,7 @@ Use only the JSON input. Every number you write must appear in the JSON exactly 
 The "spine" field, if present, compares today with the same day replayed without Spine. Mention the "saved" amount once. If "usedSuggestedPlan" is true, nothing was approved, so say it's what Spine's plan could have kept, not what it did keep.
 The "actionsTaken" field lists what was approved today. Don't recommend doing something that's already on it.
 The "learnings" field holds patterns already computed from past weeks. Use them to support your advice when they're relevant.
+"lostOrders" already includes "cancelledOrders". Never add them together or call the cancelled ones "another": say e.g. "14 orders were lost, and 9 of those were cancelled and refunded".
 Write money with two decimals, like $74.40. Write order ids with a # instead of the leading "o", so o97 becomes #97.
 Write 3 to 5 short sentences in plain English, with no jargon. Mention anything that went wrong: stockouts, price changes and which dishes they hurt, payout gaps and the specific orders, flagged invoices.
 Then give 1 to 3 concrete things Mai should do.

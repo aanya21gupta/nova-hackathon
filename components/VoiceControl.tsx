@@ -274,10 +274,11 @@ export function VoiceControl() {
   }, [startListening, stopListening]);
 
   const showMic = supported && !typeMode;
-  const recent = [...voiceActions(state)].reverse().slice(0, 3);
+  // The panel stays pinned on screen, so it shows only the latest two. The Action log has the rest.
+  const recent = [...voiceActions(state)].reverse().slice(0, 2);
 
   return (
-    <section aria-label="Voice commands" className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border-2 border-neutral-700 bg-neutral-900 p-4 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)_minmax(0,25rem)]">
+    <section aria-label="Voice commands" className="sticky bottom-0 z-10 mt-4 grid grid-cols-1 gap-3 rounded-2xl border-2 border-neutral-700 bg-neutral-900 p-3 shadow-[0_-12px_32px_rgba(0,0,0,0.7)] lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,22rem)]">
       <div>
         {showMic ? (
           <>
@@ -291,13 +292,13 @@ export function VoiceControl() {
               onPointerLeave={stopListening}
               onPointerCancel={stopListening}
               onContextMenu={(event) => event.preventDefault()}
-              className={`w-full touch-none rounded-2xl px-6 py-6 text-4xl font-bold select-none ${
+              className={`w-full touch-none rounded-2xl px-5 py-3 text-3xl font-bold select-none ${
                 listening ? "bg-red-600 text-white ring-4 ring-red-300" : "bg-white text-black hover:bg-neutral-200"
               }`}
             >
               {listening ? "● Listening…" : "🎙 Hold to talk"}
             </button>
-            <p className="mt-2 text-xl text-neutral-400">
+            <p className="mt-1 text-lg text-neutral-400">
               or hold <kbd className="rounded bg-neutral-700 px-2 text-neutral-100">Space</kbd> ·{" "}
               <button type="button" onClick={() => setTypeMode(true)} className="underline underline-offset-4 hover:text-white">
                 Type instead
@@ -313,7 +314,7 @@ export function VoiceControl() {
               void handleTranscript(text);
             }}
           >
-            <label htmlFor="voice-text" className="text-xl text-neutral-400">
+            <label htmlFor="voice-text" className="text-lg text-neutral-400">
               {supported ? "Type a command" : "This browser can't listen, so type a command"}
             </label>
             <div className="mt-1 flex gap-2">
@@ -323,28 +324,28 @@ export function VoiceControl() {
                 onChange={(event) => setTyped(event.target.value)}
                 placeholder="86 pad thai"
                 autoComplete="off"
-                className="min-w-0 flex-1 rounded-xl border-2 border-neutral-600 bg-neutral-950 px-4 py-3 text-3xl text-white placeholder:text-neutral-500"
+                className="min-w-0 flex-1 rounded-xl border-2 border-neutral-600 bg-neutral-950 px-4 py-2 text-2xl text-white placeholder:text-neutral-500"
               />
               <button type="submit" className="rounded-xl bg-white px-5 text-2xl font-bold text-black hover:bg-neutral-200">
                 Send
               </button>
             </div>
             {supported && (
-              <button type="button" onClick={() => setTypeMode(false)} className="mt-2 text-xl text-neutral-400 underline underline-offset-4 hover:text-white">
+              <button type="button" onClick={() => setTypeMode(false)} className="mt-1 text-lg text-neutral-400 underline underline-offset-4 hover:text-white">
                 Use the mic
               </button>
             )}
           </form>
         )}
-        <p className="mt-2 text-lg text-neutral-500">Try {EXAMPLES.join(" · ")}</p>
+        <p className="mt-1 text-base text-neutral-500">Try {EXAMPLES.join(" · ")}</p>
       </div>
 
       <div aria-live="polite" className="min-w-0">
-        <div className="text-xl text-neutral-400">{listening ? "Hearing" : "Heard"}</div>
-        <div className="truncate text-4xl font-semibold">{interim || feedback?.heard ? `“${interim || feedback?.heard}”` : "…"}</div>
-        {feedback && <div className={`mt-2 text-3xl leading-tight font-bold ${TONE_CLASS[feedback.tone]}`}>{feedback.text}</div>}
+        <div className="text-lg text-neutral-400">{listening ? "Hearing" : "Heard"}</div>
+        <div className="truncate text-3xl font-semibold">{interim || feedback?.heard ? `“${interim || feedback?.heard}”` : "…"}</div>
+        {feedback && <div className={`mt-1 text-2xl leading-tight font-bold ${TONE_CLASS[feedback.tone]}`}>{feedback.text}</div>}
         {pending && (
-          <div role="alert" className="mt-3 flex flex-wrap items-center gap-4 rounded-xl bg-amber-400 px-4 py-3 text-black">
+          <div role="alert" className="mt-2 flex flex-wrap items-center gap-4 rounded-xl bg-amber-400 px-4 py-2 text-black">
             <span className="text-2xl font-bold">
               {describeVoiceCall(pending.call, data.menu).replace(/^Paused/, "Pausing")} · in {Math.max(1, Math.ceil(leftMs / 1000))}s
             </span>
@@ -356,17 +357,17 @@ export function VoiceControl() {
       </div>
 
       <div className="min-w-0">
-        <div className="text-xl text-neutral-400">Done by voice</div>
-        {recent.length === 0 && <p className="mt-1 text-xl text-neutral-500">Nothing yet.</p>}
+        <div className="text-lg text-neutral-400">Done by voice</div>
+        {recent.length === 0 && <p className="mt-1 text-lg text-neutral-500">Nothing yet.</p>}
         <ul>
           {recent.map((entry) => (
-            <li key={entry.id} className="border-t border-neutral-800 py-2">
-              <div className="text-2xl font-semibold">
+            <li key={entry.id} className="border-t border-neutral-800 py-1.5">
+              <div className="text-xl font-semibold">
                 <span className="text-neutral-400 tabular-nums">{formatTime(entry.atMinute)}</span> {entry.result}
                 {entry.viaAI && <span className="text-lg text-neutral-400"> · via AI</span>}
               </div>
-              {entry.mockCalls.map((line) => (
-                <div key={line} className="truncate text-lg text-neutral-400">↳ {line}</div>
+              {entry.mockCalls.slice(0, 1).map((line) => (
+                <div key={line} className="truncate text-base text-neutral-400">↳ {line}</div>
               ))}
             </li>
           ))}
