@@ -28,6 +28,8 @@ export function ActionLog() {
                 {action.beforeAfter && <div className="text-lg text-basil">{action.beforeAfter}</div>}
                 <div className="text-base text-muted">
                   {formatTime(action.atMinute)} · {SOURCE[action.by]}
+                  {action.transcript && ` · "${action.transcript}"`}
+                  {action.viaAI && " · understood by AI"}
                 </div>
                 {action.mockCalls.map((line) => (
                   <div key={line} className="mt-1 rounded-lg bg-paper px-2 py-1 font-mono text-sm break-words text-muted">

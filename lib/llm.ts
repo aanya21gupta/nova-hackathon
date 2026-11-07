@@ -10,7 +10,7 @@ import { join } from "node:path";
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const TIMEOUT_MS = 20_000;
 
-export type LLMJob = "invoice" | "recap" | "alertReason" | "agentPlan";
+export type LLMJob = "invoice" | "recap" | "alertReason" | "agentPlan" | "voice";
 
 export interface LLMRequest<T> {
   job: LLMJob;

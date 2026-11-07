@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { getData } from "@/data";
 import { currentMinute, dayPhase, DEFAULT_CONTROL, getSimStateAt, SIM_STORAGE_KEY, type DayPhase } from "./simulator";
 import { applyToolCall, type ApplyResult } from "./tools";
-import type { ActionSource, Minutes, RestaurantData, SimControl, SimState, ToolCall, Trigger } from "./types";
+import type { ActionSource, AppliedAction, Minutes, RestaurantData, SimControl, SimState, ToolCall, Trigger } from "./types";
 
 export interface UseSim {
   control: SimControl;
@@ -21,7 +21,7 @@ export interface UseSim {
   jumpTo: (minute: Minutes) => void;
   fire: (trigger: Trigger) => void;
   /** Runs a tool now. It's validated first, and the result says if it was rejected. */
-  runTool: (call: ToolCall, by: ActionSource) => ApplyResult;
+  runTool: (call: ToolCall, by: ActionSource, details?: Pick<AppliedAction, "transcript" | "viaAI">) => ApplyResult;
   skipAction: (id: string) => void;
   reset: () => void;
 }
@@ -86,9 +86,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const runTool = useCallback(
-    (call: ToolCall, by: ActionSource): ApplyResult => {
+    (call: ToolCall, by: ActionSource, details?: Pick<AppliedAction, "transcript" | "viaAI">): ApplyResult => {
       const current = controlRef.current;
-      const result = applyToolCall(current, call, by, currentMinute(current, data, Date.now()), data);
+      const result = applyToolCall(current, call, by, currentMinute(current, data, Date.now()), data, details);
       if (result.ok) update(() => result.control);
       return result;
     },

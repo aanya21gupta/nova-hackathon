@@ -3,6 +3,8 @@
 import { CHANNEL_NAMES, formatTime, orderLabel } from "@/lib/format";
 import type { MenuItem, QueueEntry, QueueLabel } from "@/lib/types";
 import { useSim } from "@/lib/useSim";
+import { activeBusyModes } from "@/lib/voiceActions";
+import { VoiceControl } from "@/components/VoiceControl";
 
 const COLUMNS: { label: QueueLabel; limit: number; header: string; card: string }[] = [
   { label: "FIRE NOW", limit: 3, header: "bg-red-600 text-white", card: "border-red-500/80 bg-red-950/70" },
@@ -52,6 +54,8 @@ function OrderCard({ entry, menu, column, delayMinutes }: { entry: QueueEntry; m
 
 export default function KitchenPage() {
   const { state, data, running } = useSim();
+  const busy = activeBusyModes(state, state.now);
+  const paused = state.pausedItems.filter((p) => p.fromMinute <= state.now).map((p) => itemName(data.menu, p.itemId));
 
   return (
     <div className="flex min-h-[calc(100vh-2.5rem)] flex-col bg-neutral-950 p-4 text-white">
@@ -61,6 +65,16 @@ export default function KitchenPage() {
           {state.serviceOver ? "Closed" : `${state.cookingCount} cooking${running ? "" : " · paused"}`}
         </div>
       </header>
+      {(paused.length > 0 || busy.length > 0) && (
+        <div className="mb-3 flex flex-wrap gap-3 text-3xl font-bold">
+          {paused.length > 0 && <div className="rounded-xl bg-fuchsia-300 px-4 py-1.5 text-black">86&apos;d on delivery: {paused.join(", ")}</div>}
+          {busy.map((b, i) => (
+            <div key={i} className="rounded-xl bg-sky-300 px-4 py-1.5 text-black tabular-nums">
+              Busy mode +{b.extraMinutes} min until {formatTime(b.untilTime)}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="grid flex-1 grid-cols-3 gap-4">
         {COLUMNS.map((column) => {
           // A delayed order goes first, so the cook can see why it moved, even when the column is full.
@@ -83,6 +97,7 @@ export default function KitchenPage() {
           );
         })}
       </div>
+      <VoiceControl />
     </div>
   );
 }

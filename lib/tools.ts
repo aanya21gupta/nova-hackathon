@@ -65,7 +65,11 @@ export function validateToolCall(call: ToolCall, state: SimState, data: Restaura
         return "The pause time must be between now and close.";
       }
       const paused = state.pausedItems.find((p) => p.itemId === call.itemId);
-      if (paused && call.channels.every((c) => paused.channels.includes(c))) return "That dish is already paused on those channels.";
+      // A pause scheduled for later doesn't stop someone pausing it right now.
+      const startsAt = call.fromMinute ?? state.now;
+      if (paused && paused.fromMinute <= startsAt && call.channels.every((c) => paused.channels.includes(c))) {
+        return "That dish is already paused on those channels.";
+      }
       return null;
     }
     case "resumeItem": {
@@ -249,7 +253,14 @@ export type ApplyResult = { ok: true; control: SimControl; action: AppliedAction
  * Validates a tool call against the current state and, if it's safe, adds it to the day.
  * Everything else (run-outs, prep, staffing, the queue) recomputes from there.
  */
-export function applyToolCall(control: SimControl, call: ToolCall, by: ActionSource, now: Minutes, data: RestaurantData): ApplyResult {
+export function applyToolCall(
+  control: SimControl,
+  call: ToolCall,
+  by: ActionSource,
+  now: Minutes,
+  data: RestaurantData,
+  details: Pick<AppliedAction, "transcript" | "viaAI"> = {},
+): ApplyResult {
   const before = getSimStateAt(control, data, now);
   const error = validateToolCall(call, before, data);
   if (error) return { ok: false, error };
@@ -261,6 +272,7 @@ export function applyToolCall(control: SimControl, call: ToolCall, by: ActionSou
     by,
     result: resultFor(call, data),
     mockCalls: mockCallsFor(call, data),
+    ...details,
   };
   const morningView = dayPhase(control, before) === "morning";
   // An order drafted before service can be picked up today. During service it's for tomorrow.

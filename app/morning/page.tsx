@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ActionLog } from "@/components/ActionLog";
 import { AgentPlans } from "@/components/AgentPlan";
 import { HourlyForecastChart } from "@/components/charts";
+import { ForecastAccuracy } from "@/components/ForecastAccuracy";
 import { Button, ButtonLink, Card, NextStep, Notice, Page, PageTitle } from "@/components/ui";
 import { totalOrders } from "@/lib/forecast";
 import { formatHour, formatMoney, formatTime, SKILL_NAMES } from "@/lib/format";
@@ -199,6 +200,8 @@ export default function MorningPage() {
       <Card title="Orders by hour">
         <HourlyForecastChart forecast={forecast} />
       </Card>
+
+      <ForecastAccuracy data={data} />
 
       <Card>
         <div role="tablist" aria-label="Today's jobs" className="grid grid-cols-3 gap-1 rounded-xl bg-paper p-1">

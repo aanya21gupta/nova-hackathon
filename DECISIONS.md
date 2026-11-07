@@ -63,3 +63,16 @@ Running log of choices and assumptions. Add a line whenever CLAUDE.md doesn't co
 - Photo invoices only, no PDF.
 - Ask Spine and cross-training suggestions are skipped.
 - The app is light theme only.
+
+## M3: Forecast that measures and improves itself
+- Walk-forward backtest over the last 28 days (lib/backtest.ts). Each day uses only earlier days; a test proves cutting history after a day doesn't change that day's forecasts.
+- Error metric: mean absolute error in orders per hour (also shown as % of average hourly orders). Mai-friendly: "±1.0 orders an hour".
+- Forecast (b) is exactly buildForecast() on earlier days (tested). (c) = same baseline × learned multipliers (day of week, home game, rain), nudged nightly by exponential smoothing at rate 0.2.
+- The learner starts from the configured home-game multiplier, not from scratch: starting from ×1 was tried and ended worse (+19% after 4 games). With synthetic data whose patterns don't drift, (c) ≈ (b); the card says so honestly. Learning matters with real data that changes.
+- The live forecast is NOT switched to learned multipliers, so the demo story numbers (tests/story.test.ts) stay fixed.
+
+## M4: Voice commands in the kitchen
+- Built separately from M1, then merged. Voice now runs M1's tools through `lib/voiceActions.ts`, so "86" really zeroes the forecast on the apps, busy mode really moves promised times, and "order ready" really takes an order off the queue. It's all validated the same way and appears in the shared Action log as "Voice". The separate voice log was removed.
+- Customer-facing actions (86, busy mode) wait out the 5-second Undo window before applying, so no undo API was needed in shared code.
+- Keyword rules run offline first; only unmatched phrases go to /api/voice (runLLM job "voice"). Its output is validated on the server and again in the browser; offline it returns {call: null}.
+- Mic path (hold-to-talk / spacebar) not tested in the automated browser; the typed path was.

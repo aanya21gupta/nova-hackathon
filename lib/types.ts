@@ -208,6 +208,9 @@ export interface AppliedAction {
   beforeAfter?: string;
   /** Clearly labeled calls to outside systems. All are simulated. */
   mockCalls: string[];
+  /** Voice only: what was said, and whether the AI chose the tool rather than the keyword rules. */
+  transcript?: string;
+  viaAI?: boolean;
   /** Supplier orders only: when the stock can be used. Null means it arrives after today. */
   stockArrivesAt?: Minutes | null;
 }

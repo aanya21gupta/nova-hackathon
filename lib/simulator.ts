@@ -371,11 +371,16 @@ function computeState(triggers: Trigger[], allActions: AppliedAction[], data: Re
   const pausedItems: SimState["pausedItems"] = [];
   for (const [key, list] of windows) {
     const [itemId, channel] = key.split("|") as [string, Channel];
-    const open = list.find((w) => w.to === Infinity);
-    if (!open) continue;
+    const open = list.filter((w) => w.to === Infinity);
+    if (open.length === 0) continue;
+    const from = Math.min(...open.map((w) => w.from));
     const existing = pausedItems.find((p) => p.itemId === itemId);
-    if (existing) existing.channels.push(channel);
-    else pausedItems.push({ itemId, channels: [channel], fromMinute: open.from });
+    if (existing) {
+      existing.channels.push(channel);
+      existing.fromMinute = Math.min(existing.fromMinute, from);
+    } else {
+      pausedItems.push({ itemId, channels: [channel], fromMinute: from });
+    }
   }
 
   const extraAlerts: Alert[] = Object.entries(delayedOrders)
