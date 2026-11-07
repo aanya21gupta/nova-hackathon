@@ -22,16 +22,33 @@ const STATUSES: OrderStatus[] = ["queued", "cooking", "ready", "pickedUp"];
 
 type Choice = { tool: string | null; args?: unknown };
 
+/** Caps keep a bad or hostile request from producing a huge (costly) LLM prompt. */
+const MAX_BODY_BYTES = 32_000;
+const MAX_TRANSCRIPT = 200;
+const MAX_ORDERS = 300;
+/** Order ids in this app look like "o12" or "r3" (see lib/format.ts orderLabel). */
+const ORDER_ID = /^[or]\d{1,4}$/;
+
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => ({}))) as { transcript?: unknown; now?: unknown; orders?: unknown };
-  const transcript = typeof body.transcript === "string" ? body.transcript.slice(0, 300) : "";
+  const raw = await request.text().catch(() => "");
+  if (raw.length > MAX_BODY_BYTES) return NextResponse.json({ call: null, source: "fallback" }, { status: 413 });
+  let body: { transcript?: unknown; now?: unknown; orders?: unknown } = {};
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    body = {};
+  }
+  const transcript = typeof body.transcript === "string" ? body.transcript.slice(0, MAX_TRANSCRIPT) : "";
   const data = getData();
   const closeMinute = data.closeHour * 60;
-  const now = typeof body.now === "number" && Number.isFinite(body.now) ? body.now : data.openHour * 60;
+  const now = typeof body.now === "number" && Number.isFinite(body.now) ? Math.min(Math.max(body.now, 0), 24 * 60) : data.openHour * 60;
   const orders = (Array.isArray(body.orders) ? body.orders : [])
-    .slice(0, 500)
+    .slice(0, MAX_ORDERS)
     .filter((o): o is { id: string; status: OrderStatus } =>
-      typeof o === "object" && o !== null && typeof (o as { id?: unknown }).id === "string" && STATUSES.includes((o as { status?: OrderStatus }).status as OrderStatus));
+      typeof o === "object" && o !== null &&
+      typeof (o as { id?: unknown }).id === "string" && ORDER_ID.test((o as { id: string }).id) &&
+      STATUSES.includes((o as { status?: OrderStatus }).status as OrderStatus))
+    .map((o) => ({ id: o.id, status: o.status }));
 
   if (!transcript) return NextResponse.json({ call: null, source: "fallback" });
 
@@ -47,7 +64,9 @@ export async function POST(request: Request) {
 
   const result = await runLLM<Choice>({
     job: "voice",
-    cacheKey: `voice-${createHash("sha256").update(transcript.toLowerCase().trim()).digest("hex").slice(0, 16)}`,
+    // Keyed on the FULL input (like the other routes), so one saved answer can't be replayed
+    // against a different board. Cached answers are re-validated against current state anyway.
+    cacheKey: `voice-${createHash("sha256").update(JSON.stringify(input)).digest("hex").slice(0, 16)}`,
     instructions: INSTRUCTIONS,
     input,
     parse: (raw) => {
