@@ -7,6 +7,17 @@ export type Minutes = number;
 export type Channel = "doordash" | "appB" | "direct";
 export type Skill = "wok" | "fryer" | "packing" | "register";
 
+export interface SalesChannel {
+  id: Channel;
+  name: string;
+  kind: "pos" | "delivery" | "direct";
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+}
+
 // ---------- Restaurant data ----------
 
 export interface RecipeLine {
@@ -419,11 +430,16 @@ export interface Recap {
 // ---------- The whole dataset ----------
 
 export interface RestaurantData {
+  id: string;
+  name: string;
+  timezone: string;
   date: string;
   /** 0 = Sunday ... 6 = Saturday */
   weekday: number;
   openHour: number;
   closeHour: number;
+  channels: SalesChannel[];
+  suppliers: Supplier[];
   menu: MenuItem[];
   ingredients: Ingredient[];
   staff: StaffMember[];

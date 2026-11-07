@@ -12,6 +12,11 @@ const orders: Order[] = [
 ];
 
 const data: RestaurantData = {
+  id: "test",
+  name: "Test Kitchen",
+  timezone: "America/New_York",
+  channels: [],
+  suppliers: [],
   date: "2026-11-07",
   weekday: 6,
   openHour: 11,

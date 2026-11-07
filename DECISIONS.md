@@ -29,6 +29,10 @@ Running log of choices and assumptions. Add a line whenever CLAUDE.md doesn't co
 - **The result isn't always flattering.** Without the queue there are few late orders, because the model doesn't limit cooking capacity. It shows up as food left waiting instead. The card says so rather than hiding it.
 - **If nothing was approved,** the "with" run is the agent's rule-based plan, labeled "could have saved".
 
+## Connect your restaurant (M5)
+- Shruthi's M5 was built on the early scaffold and merged into the full app, with the full app taking priority. Its profile fields (name, id, timezone, channels, suppliers) now live on the generated demo data in `data/fake.ts`, and `data/restaurant-profile.ts` stays the one place to swap in another restaurant. The setup page uses the app's design and is linked from the header.
+- The Connect buttons and CSV import are prototype-only: they record what was connected and store the imported rows in this browser, but the forecast doesn't read imported orders yet.
+
 ## Simulator
 - **State:** every tab derives state from `getSimState(control, data, nowMs)`, with `control` in `localStorage`. There's no server state. All screens must run in one browser on one machine, which is fine for a recorded demo.
 - **Order status** comes from the clock: an order is on the queue until 3 minutes after its start time, then cooking until its ready time. There's no "started" button for cooks.

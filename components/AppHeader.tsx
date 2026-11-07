@@ -28,7 +28,7 @@ function KitchenBar() {
 
 export function AppHeader() {
   const pathname = usePathname();
-  const { state, phase, running } = useSim();
+  const { state, data, phase, running } = useSim();
 
   if (pathname === "/service/kitchen") return <KitchenBar />;
 
@@ -40,8 +40,15 @@ export function AppHeader() {
       <header className="mx-auto max-w-5xl px-4 pt-3 pb-2">
         <div className="flex items-center justify-between gap-3">
           <Link href="/" className="min-w-0">
-            <div className="font-display text-2xl leading-tight font-semibold">Basil &amp; Rice</div>
+            <div className="font-display text-2xl leading-tight font-semibold">{data.name}</div>
             <PrototypeLabel />
+          </Link>
+          <Link
+            href="/setup"
+            aria-current={pathname === "/setup" ? "page" : undefined}
+            className={`ml-auto shrink-0 text-base underline-offset-4 hover:underline ${pathname === "/setup" ? "font-semibold underline" : "text-muted"}`}
+          >
+            Setup
           </Link>
           <div className="shrink-0 text-right" aria-label={`Restaurant clock: ${formatTime(state.now)}, ${clockNote}`}>
             <div className="text-2xl leading-tight font-semibold tabular-nums">{phase === "morning" ? "Saturday" : formatTime(state.now)}</div>

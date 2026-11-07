@@ -245,6 +245,19 @@ function build(): RestaurantData {
   ];
 
   return {
+    id: "basil-and-rice",
+    name: "Basil & Rice",
+    timezone: "America/New_York",
+    channels: [
+      { id: "direct", name: "Phone & walk-in", kind: "pos" },
+      { id: "doordash", name: "DoorDash", kind: "delivery" },
+      { id: "appB", name: "App B", kind: "delivery" },
+    ],
+    suppliers: [
+      { id: "thai-harvest", name: "Thai Harvest" },
+      { id: "valley-meats", name: "Valley Meats" },
+      { id: "valley-produce", name: "Valley Produce" },
+    ],
     date: DATE,
     weekday: WEEKDAY,
     openHour: OPEN_HOUR,

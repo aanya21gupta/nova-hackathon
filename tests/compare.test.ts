@@ -28,6 +28,11 @@ function order(id: string, placedAt: number, channel: Order["channel"] = "direct
 }
 
 const tiny: RestaurantData = {
+  id: "test",
+  name: "Test Kitchen",
+  timezone: "America/New_York",
+  channels: [],
+  suppliers: [],
   date: "2026-11-07",
   weekday: 6,
   openHour: 11,
